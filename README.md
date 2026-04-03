@@ -1,56 +1,67 @@
 # 🛰️ Sat-Scan Terminal v3.0
 
-### Geospatial AI Change Detection System
+### Geospatial AI Change Detection System | SIH Re-Engineered Build
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://YOUR-APP-LINK.streamlit.app)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python\&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/AI-PyTorch-EE4C2C?logo=pytorch\&logoColor=white)](https://pytorch.org/)
 [![Google Earth Engine](https://img.shields.io/badge/Engine-Google_Earth-4285F4?logo=google\&logoColor=white)](https://earthengine.google.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00FF41.svg)](https://opensource.org/licenses/MIT)
 
 ---
+<img width="2752" height="1536" alt="Gemini_Generated_Image_2yo8o82yo8o82yo8" src="https://github.com/user-attachments/assets/93797dda-1598-42e4-a65e-32169cf40c18" />
 
-## 📌 Overview
 
-**Sat-Scan Terminal v3.0** is a full-stack geospatial AI system designed to detect and classify surface-level changes using Sentinel-2 satellite imagery.
 
-It combines deep learning, geospatial processing, and synchronized visualization to produce accurate, interpretable, and noise-resistant results.
+> 🚀 **Live Demo:** https://satilite-image-detection.streamlit.app/
+
 
 ---
 
-## 📜 Project Background (SIH Context)
+## 📌 Overview
 
-This project was originally developed for the **Smart India Hackathon (SIH)**.
+**Sat-Scan Terminal v3.0** is a geospatial AI system designed to detect and classify surface-level changes using Sentinel-2 satellite imagery.
 
-The initial version failed due to:
+Originally developed for the **Smart India Hackathon (SIH)**, this version represents a **complete system-level rebuild**, focused on precision, synchronization, and noise-resistant classification.
 
-* coordinate synchronization issues ("grey-screen drift")
-* high false positives in change detection
-* weak spatial interpretation using bounding boxes
+---
 
-Instead of abandoning the project, the system was **re-engineered from scratch**, focusing on root-cause fixes rather than surface-level patches.
+## 📜 Engineering Journey (SIH Context)
 
-**Version 3.0 represents a stable and production-oriented rebuild.**
+The initial prototype failed due to:
+
+* Coordinate desynchronization ("grey-screen drift")
+* High false positives from seasonal/environmental changes
+* Poor spatial interpretation using bounding boxes
+
+Instead of abandoning the project, the system was **re-engineered from scratch**.
+
+**v3.0 reflects a shift from failure → structured engineering recovery**, focusing on:
+
+* root-cause debugging
+* architectural redesign
+* robustness over quick fixes
 
 ---
 
 ## 🎯 Engineering Objective
 
-Design a **robust and interpretable change detection pipeline** that:
+Design a **stable and interpretable change detection pipeline** that:
 
 * Eliminates temporal misalignment
-* Reduces environmental and seasonal noise
+* Minimizes false positives
 * Produces precise region-level outputs
-* Maintains consistency across large-scale geospatial data
+* Scales across real-world geospatial data
 
 ---
 
-## 🧠 Architectural Decisions
+## 🧠 Core Architecture
 
-### 1. Siamese Feature Learning
+### 1. Siamese Feature Extraction
 
-* ResNet-18 backbone for temporal comparison (T1 vs T2)
-* Euclidean feature distance instead of raw pixel differencing
-* Improved robustness to lighting and seasonal variation
+* ResNet-18 backbone for T1 vs T2 comparison
+* Uses feature distance instead of raw pixel difference
+* Improves robustness to lighting and seasonal variation
 
 ### 2. Majority-Rule Classification Engine
 
@@ -58,10 +69,10 @@ Design a **robust and interpretable change detection pipeline** that:
 * Applies statistical mode across regions
 * Filters noise and “poison pixels”
 
-### 3. Contour-Based Vectorization
+### 3. Contour-Based Detection
 
 * Replaces bounding boxes with precise contours
-* Enables accurate region-level interpretation
+* Enables accurate spatial interpretation
 
 ### 4. Zero-Drift Visualization
 
@@ -94,33 +105,32 @@ Visualization Layer (Streamlit + Folium)
 
 ## 🛠️ Tech Stack
 
-| Component          | Technology                       |
-| ------------------ | -------------------------------- |
-| Inference Engine   | PyTorch (Siamese Neural Network) |
-| Data Pipeline      | Google Earth Engine (Sentinel-2) |
-| Geospatial Math    | Rasterio + Affine Transform      |
-| Image Processing   | Scikit-Image                     |
-| Backend API        | FastAPI (Uvicorn)                |
-| Frontend Interface | Streamlit + Folium               |
+| Component        | Technology                       |
+| ---------------- | -------------------------------- |
+| Inference Engine | PyTorch (Siamese Neural Network) |
+| Data Pipeline    | Google Earth Engine (Sentinel-2) |
+| Geospatial Math  | Rasterio + Affine Transform      |
+| Image Processing | Scikit-Image                     |
+| Visualization    | Streamlit + Folium DualMap       |
 
 ---
 
-## ⚙️ Installation & Setup
+## 🚀 Usage
 
-### 1. Clone Repository
+### 🌐 Live Application
+
+1. Open the Streamlit app
+2. Draw an Area of Interest (AOI)
+3. Select T1 (Before) and T2 (After) dates
+4. Run detection to visualize changes
+
+### 💻 Local Setup
 
 ```bash
 git clone https://github.com/Ganateju/Satilite-Image-Detection.git
 cd Satilite-Image-Detection
-```
-
-### 2. Install Dependencies
-
-```bash
 pip install -r requirements.txt
 ```
-
-### 3. Configure Environment Variables
 
 Create a `.env` file:
 
@@ -128,19 +138,7 @@ Create a `.env` file:
 GEE_PROJECT_ID=your-google-project-id
 ```
 
-> Do not commit `.env` files.
-
----
-
-## ▶️ Running the System
-
-### Terminal A — Backend
-
-```bash
-uvicorn backend.main:app --port 8000
-```
-
-### Terminal B — Frontend
+Run:
 
 ```bash
 streamlit run frontend/app.py
@@ -150,16 +148,16 @@ streamlit run frontend/app.py
 
 ## 📡 Classification Logic
 
-```
+```python
 IF (Cluster_Area > Threshold) AND (Mode(DynamicWorld_Class) == Built):
-    LABEL = "HUMAN-MADE"
+    LABEL = "HUMAN-MADE"  # Red
 ELSE:
-    LABEL = "NATURAL"
+    LABEL = "NATURAL"     # Green
 ```
 
 ---
 
-## 📊 Output Characteristics
+## 📊 Output
 
 * Contour-based detected regions
 * Reduced false positives via probabilistic filtering
@@ -175,16 +173,7 @@ ELSE:
 | Map Alignment    | Drift Issues         | Fully Synchronized      |
 | Noise Handling   | High False Positives | Majority-Rule Filtering |
 | Region Detection | Bounding Boxes       | Precise Contours        |
-| System Stability | Unreliable           | Stable & Consistent     |
-
----
-
-## 🧪 Future Scope
-
-* Multi-temporal analysis (T1, T2, T3…)
-* Transformer-based geospatial models
-* Real-time monitoring pipelines
-* Integration with urban planning systems
+| Stability        | Unreliable           | Consistent & Stable     |
 
 ---
 
@@ -192,25 +181,22 @@ ELSE:
 
 * Smart India Hackathon — Problem statement
 * Google Earth Engine — Data infrastructure
-* Open-source community — Core libraries
+* Open-source community — Core tools
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License.
-See the LICENSE file for details.
 
 ---
 
 ## 🧩 Developer Note
 
-This project reflects a shift from **failure → structured engineering recovery**.
+This project demonstrates a key engineering principle:
 
-Instead of iterating blindly, the focus was on:
+> **Failure is acceptable. Not understanding the failure is not.**
 
-* identifying root causes
-* redesigning system architecture
-* prioritizing robustness over quick fixes
+The system was rebuilt by identifying core issues and redesigning the architecture instead of applying superficial fixes.
 
 ---
