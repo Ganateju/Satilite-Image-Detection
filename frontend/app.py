@@ -1,12 +1,22 @@
+import os
+import sys
+import json
 import streamlit as st
 import folium
 import folium.plugins
 from folium.plugins import Draw, LocateControl, Geocoder
 from streamlit_folium import st_folium
-import streamlit.components.v1 as components
-import requests
+import ee
 import datetime
 import math
+
+# Make backend importable when running from frontend/ or repo root
+_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+
+from backend.model    import build_model, detect_changes_zero_shot
+from backend.analysis import run_analysis
 
 st.set_page_config(
     layout="wide",
@@ -15,9 +25,46 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── CSS ────────────────────────────────────────────────────────────────────────
-with open("frontend/style.css") as f:
+# ── CSS (path-safe) ───────────────────────────────────────────────────────────
+_css_path = os.path.join(os.path.dirname(__file__), "style.css")
+with open(_css_path) as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+
+# ── CACHED RESOURCES ──────────────────────────────────────────────────────────
+
+@st.cache_resource(show_spinner="Loading Siamese ResNet weights...")
+def load_model():
+    return build_model()
+
+
+@st.cache_resource(show_spinner="Authenticating with Google Earth Engine...")
+def init_gee():
+    """
+    Priority:
+      1. Streamlit Secret 'GEE_JSON_KEY' (Streamlit Cloud)
+      2. Environment var  'GEE_PROJECT_ID' + user credentials (local dev)
+    """
+    gee_json = st.secrets.get("GEE_JSON_KEY", None)
+    if gee_json:
+        key_dict    = json.loads(gee_json) if isinstance(gee_json, str) else dict(gee_json)
+        svc_email   = key_dict["client_email"]
+        credentials = ee.ServiceAccountCredentials(svc_email, key_data=json.dumps(key_dict))
+        ee.Initialize(credentials)
+        return "service_account"
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    project_id = os.getenv("GEE_PROJECT_ID", "")
+    if not project_id:
+        st.error("GEE not configured. Set GEE_PROJECT_ID in .env or GEE_JSON_KEY in Streamlit Secrets.")
+        st.stop()
+    ee.Initialize(project=project_id)
+    return "user_credentials"
+
+
+# Boot once per process
+_model    = load_model()
+_auth_mode = init_gee()
 
 # ── HELPERS ────────────────────────────────────────────────────────────────────
 def haversine(lon1, lat1, lon2, lat2):
@@ -143,41 +190,42 @@ with col2:
             log("QUERYING COPERNICUS/S2_SR_HARMONIZED...", "system")
             log("FETCHING GEOTIFF AT scale=10m/px...", "system")
 
-            with st.spinner("SCANNING... PLEASE WAIT"):
+            with st.spinner("SCANNING TARGET AREA — PLEASE WAIT"):
                 try:
-                    res = requests.post(
-                        "http://127.0.0.1:8000/api/analyze",
-                        json={"bbox": bbox, "t1_date": str(t1_date), "t2_date": str(t2_date)},
-                        timeout=180,
+                    def _model_fn(img1, img2, threshold):
+                        return detect_changes_zero_shot(img1, img2, threshold, model=_model)
+
+                    data = run_analysis(
+                        bbox=bbox,
+                        t1_date=str(t1_date),
+                        t2_date=str(t2_date),
+                        model_fn=_model_fn,
                     )
-                    if res.status_code == 200:
-                        data = res.json()
-                        st.session_state.analysis_data  = data
-                        st.session_state.run_t1_date    = t1_date
-                        st.session_state.run_t2_date    = t2_date
-                        st.session_state.run_bbox       = bbox
 
-                        feats     = data.get("geojson", {}).get("features", [])
-                        n_human   = sum(1 for f in feats if f["properties"]["type"] == "Human-made")
-                        n_natural = sum(1 for f in feats if f["properties"]["type"] == "Natural")
+                    st.session_state.analysis_data = data
+                    st.session_state.run_t1_date   = t1_date
+                    st.session_state.run_t2_date   = t2_date
+                    st.session_state.run_bbox      = bbox
 
-                        log("GEOTIFF DOWNLOAD COMPLETE", "ok")
-                        log("RUNNING SIAMESE RESNET INFERENCE...", "system")
-                        log("MORPHOLOGICAL OPENING: square(3)", "system")
-                        log("EXTRACTING CONTOUR POLYGONS...", "ok")
-                        log("QUERYING DYNAMICWORLD/V1 built probability...", "system")
-                        log("MAJORITY RULE CLASSIFIER (threshold=0.5) APPLIED", "ok")
-                        log("BARE-SOIL MODAL OVERRIDE (Class 4/5) APPLIED", "ok")
-                        log(f"HUMAN-MADE CHANGES: {n_human}", "warn" if n_human > 0 else "ok")
-                        log(f"NATURAL CHANGES:    {n_natural}", "ok")
-                        log(f"TOTAL AREA CHANGED: {data['stats']['changed_pct']}%", "ok")
-                        log("CLASSIFICATION COMPLETE. RENDERING MAP...", "system")
-                    else:
-                        log(f"BACKEND ERR {res.status_code}: {res.text[:80]}", "err")
-                        st.error(f"Backend Error: {res.text}")
-                except Exception as e:
-                    log(f"CONNECTION FAILURE: {str(e)[:80]}", "err")
-                    st.error(f"Connection error: {e}")
+                    feats     = data.get("geojson", {}).get("features", [])
+                    n_human   = sum(1 for f in feats if f["properties"]["type"] == "Human-made")
+                    n_natural = sum(1 for f in feats if f["properties"]["type"] == "Natural")
+
+                    log("GEOTIFF DOWNLOAD COMPLETE", "ok")
+                    log("RUNNING SIAMESE RESNET INFERENCE...", "system")
+                    log("MORPHOLOGICAL OPENING: footprint_rectangle(3,3)", "system")
+                    log("EXTRACTING CONTOUR POLYGONS...", "ok")
+                    log("QUERYING DYNAMICWORLD/V1 built probability...", "system")
+                    log("MAJORITY RULE CLASSIFIER (threshold=0.5) APPLIED", "ok")
+                    log("BARE-SOIL MODAL OVERRIDE (Class 4/5) APPLIED", "ok")
+                    log(f"HUMAN-MADE CHANGES: {n_human}", "warn" if n_human > 0 else "ok")
+                    log(f"NATURAL CHANGES:    {n_natural}", "ok")
+                    log(f"TOTAL AREA CHANGED: {data['stats']['changed_pct']}%", "ok")
+                    log("CLASSIFICATION COMPLETE. RENDERING MAP...", "system")
+
+                except Exception as exc:
+                    log(f"SCAN FAILED: {str(exc)[:120]}", "err")
+                    st.error(f"Analysis error: {exc}")
 
     # ── RESULTS ───────────────────────────────────────────────────────────────
     if "analysis_data" in st.session_state:
