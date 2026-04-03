@@ -13,42 +13,81 @@
 
 **Sat-Scan Terminal v3.0** is a full-stack geospatial AI system designed to detect and classify surface-level changes using Sentinel-2 satellite imagery.
 
-It integrates deep learning, geospatial processing, and synchronized visualization to provide accurate and interpretable change detection results.
+It combines deep learning, geospatial processing, and synchronized visualization to produce accurate, interpretable, and noise-resistant results.
 
 ---
 
-## 🚀 Key Features
+## 📜 Project Background (SIH Context)
 
-* **Siamese Neural Network Architecture**
-  Uses a ResNet-18 backbone to compare temporal satellite images (T1 vs T2) via feature distance.
+This project was originally developed for the **Smart India Hackathon (SIH)**.
 
-* **Zero-Drift Visualization**
-  Synchronized before/after satellite views using `folium.plugins.DualMap` at native 10m resolution.
+The initial version failed due to:
 
-* **Majority-Rule Classification Engine**
-  Reduces noise and false positives by applying statistical mode analysis on Google Dynamic World probability bands.
+* coordinate synchronization issues ("grey-screen drift")
+* high false positives in change detection
+* weak spatial interpretation using bounding boxes
 
-* **Precise Contour Detection**
-  Replaces bounding boxes with contour-based segmentation for more accurate region mapping.
+Instead of abandoning the project, the system was **re-engineered from scratch**, focusing on root-cause fixes rather than surface-level patches.
+
+**Version 3.0 represents a stable and production-oriented rebuild.**
 
 ---
 
-## 🧠 System Architecture
+## 🎯 Engineering Objective
+
+Design a **robust and interpretable change detection pipeline** that:
+
+* Eliminates temporal misalignment
+* Reduces environmental and seasonal noise
+* Produces precise region-level outputs
+* Maintains consistency across large-scale geospatial data
+
+---
+
+## 🧠 Architectural Decisions
+
+### 1. Siamese Feature Learning
+
+* ResNet-18 backbone for temporal comparison (T1 vs T2)
+* Euclidean feature distance instead of raw pixel differencing
+* Improved robustness to lighting and seasonal variation
+
+### 2. Majority-Rule Classification Engine
+
+* Uses Google Dynamic World probability bands
+* Applies statistical mode across regions
+* Filters noise and “poison pixels”
+
+### 3. Contour-Based Vectorization
+
+* Replaces bounding boxes with precise contours
+* Enables accurate region-level interpretation
+
+### 4. Zero-Drift Visualization
+
+* Implemented using `folium.plugins.DualMap`
+* Ensures synchronized before/after comparison at 10m resolution
+
+---
+
+## 🏗️ System Architecture
 
 ```
-Sentinel-2 Data (GEE)
+Sentinel-2 Data (Google Earth Engine)
         ↓
 Preprocessing Pipeline
         ↓
-Siamese ResNet-18 Model (PyTorch)
+Siamese ResNet-18 (PyTorch)
         ↓
-Feature Distance Mapping
+Feature Distance Map
+        ↓
+Thresholding + Clustering
         ↓
 Contour Extraction (Scikit-Image)
         ↓
 Majority-Rule Classification (Dynamic World)
         ↓
-Visualization (Streamlit + Folium)
+Visualization Layer (Streamlit + Folium)
 ```
 
 ---
@@ -58,7 +97,7 @@ Visualization (Streamlit + Folium)
 | Component          | Technology                       |
 | ------------------ | -------------------------------- |
 | Inference Engine   | PyTorch (Siamese Neural Network) |
-| Data Source        | Google Earth Engine (Sentinel-2) |
+| Data Pipeline      | Google Earth Engine (Sentinel-2) |
 | Geospatial Math    | Rasterio + Affine Transform      |
 | Image Processing   | Scikit-Image                     |
 | Backend API        | FastAPI (Uvicorn)                |
@@ -83,27 +122,25 @@ pip install -r requirements.txt
 
 ### 3. Configure Environment Variables
 
-Create a `.env` file in the root directory:
+Create a `.env` file:
 
 ```
 GEE_PROJECT_ID=your-google-project-id
 ```
 
-> ⚠️ Do not commit `.env` files to version control.
+> Do not commit `.env` files.
 
 ---
 
-## ▶️ Running the Application
+## ▶️ Running the System
 
-Run the backend and frontend in separate terminals:
-
-### Terminal A: Backend API
+### Terminal A — Backend
 
 ```bash
 uvicorn backend.main:app --port 8000
 ```
 
-### Terminal B: Frontend Interface
+### Terminal B — Frontend
 
 ```bash
 streamlit run frontend/app.py
@@ -122,32 +159,58 @@ ELSE:
 
 ---
 
-## 📊 Output
+## 📊 Output Characteristics
 
-* Highlighted regions of detected change
-* Classification labels:
+* Contour-based detected regions
+* Reduced false positives via probabilistic filtering
+* Human-interpretable classification
+* Synchronized temporal comparison
 
-  * **Human-Made** (Red)
-  * **Natural** (Green)
-* Synchronized before/after satellite comparison
+---
+
+## 📈 Improvements Over Initial Version
+
+| Aspect           | Initial Prototype    | v3.0 System             |
+| ---------------- | -------------------- | ----------------------- |
+| Map Alignment    | Drift Issues         | Fully Synchronized      |
+| Noise Handling   | High False Positives | Majority-Rule Filtering |
+| Region Detection | Bounding Boxes       | Precise Contours        |
+| System Stability | Unreliable           | Stable & Consistent     |
+
+---
+
+## 🧪 Future Scope
+
+* Multi-temporal analysis (T1, T2, T3…)
+* Transformer-based geospatial models
+* Real-time monitoring pipelines
+* Integration with urban planning systems
 
 ---
 
 ## 🤝 Acknowledgments
 
-* Smart India Hackathon — Problem inspiration
-* Google Earth Engine — Satellite data infrastructure
-* Open Source Community — Core libraries and tools
+* Smart India Hackathon — Problem statement
+* Google Earth Engine — Data infrastructure
+* Open-source community — Core libraries
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License.
-See the [LICENSE](https://opensource.org/licenses/MIT) file for details.
+See the LICENSE file for details.
 
 ---
 
-## 📬 Contact
+## 🧩 Developer Note
 
-For queries or collaboration, feel free to open an issue or connect.
+This project reflects a shift from **failure → structured engineering recovery**.
+
+Instead of iterating blindly, the focus was on:
+
+* identifying root causes
+* redesigning system architecture
+* prioritizing robustness over quick fixes
+
+---
