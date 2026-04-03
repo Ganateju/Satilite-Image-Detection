@@ -1,0 +1,334 @@
+"""
+app.py — Single entry-point for Streamlit Cloud deployment.
+Imports analysis logic directly; no FastAPI/localhost required.
+Run: streamlit run app.py
+"""
+
+import os
+import sys
+import json
+import datetime
+import math
+
+import streamlit as st
+import folium
+import folium.plugins
+from folium.plugins import Draw, LocateControl, Geocoder
+from streamlit_folium import st_folium
+import ee
+
+# Make backend importable when cwd is the repo root
+sys.path.insert(0, os.path.dirname(__file__))
+from backend.model    import build_model, detect_changes_zero_shot
+from backend.analysis import run_analysis
+
+# ── PAGE CONFIG ────────────────────────────────────────────────────────────────
+st.set_page_config(
+    layout="wide",
+    page_title="SAT-SCAN TERMINAL v3.1",
+    page_icon="🛰️",
+    initial_sidebar_state="collapsed",
+)
+
+# ── CSS (path-safe) ────────────────────────────────────────────────────────────
+_css_path = os.path.join(os.path.dirname(__file__), "frontend", "style.css")
+with open(_css_path) as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+
+# ── CACHED RESOURCES ───────────────────────────────────────────────────────────
+
+@st.cache_resource(show_spinner="Loading Siamese ResNet weights...")
+def load_model():
+    """Build and cache the Siamese model across all Streamlit sessions."""
+    return build_model()
+
+
+@st.cache_resource(show_spinner="Authenticating with Google Earth Engine...")
+def init_gee():
+    """
+    Initialize GEE once per process.
+
+    Priority:
+      1. Streamlit Secret  'GEE_JSON_KEY'  (Streamlit Cloud — paste full JSON string)
+      2. Environment var   'GEE_PROJECT_ID' + user credentials  (local dev)
+    """
+    try:
+        # --- Streamlit Cloud path: service-account JSON in st.secrets ---
+        gee_json = st.secrets.get("GEE_JSON_KEY", None)
+        if gee_json:
+            key_dict   = json.loads(gee_json) if isinstance(gee_json, str) else dict(gee_json)
+            svc_email  = key_dict["client_email"]
+            credentials = ee.ServiceAccountCredentials(svc_email, key_data=json.dumps(key_dict))
+            ee.Initialize(credentials)
+            return "service_account"
+
+        # --- Local dev path: .env GEE_PROJECT_ID + earthengine authenticate ---
+        from dotenv import load_dotenv
+        load_dotenv()
+        project_id = os.getenv("GEE_PROJECT_ID", "")
+        if not project_id:
+            raise EnvironmentError(
+                "GEE not configured. Set GEE_PROJECT_ID in .env (local) "
+                "or GEE_JSON_KEY in Streamlit Secrets (cloud)."
+            )
+        ee.Initialize(project=project_id)
+        return "user_credentials"
+
+    except Exception as exc:
+        st.error(f"⚠ Earth Engine auth failed: {exc}")
+        st.stop()
+
+
+# ── HELPERS ────────────────────────────────────────────────────────────────────
+
+def haversine(lon1, lat1, lon2, lat2):
+    R = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a  = math.sin(dp/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+def ts():
+    return datetime.datetime.now().strftime("%H:%M:%S")
+
+# ── LOG STATE ──────────────────────────────────────────────────────────────────
+if "log_lines" not in st.session_state:
+    st.session_state.log_lines = [
+        ("system", "SYSTEM BOOT COMPLETE"),
+        ("ok",     "SENTINEL-2 SENSOR ARRAY: ONLINE"),
+        ("ok",     "PYTORCH SIAMESE MODEL: LOADED"),
+        ("ok",     "AWAITING AOI COORDINATES..."),
+    ]
+
+def log(msg, kind="ok"):
+    st.session_state.log_lines.append((kind, f"[{ts()}] {msg}"))
+
+def build_log_html():
+    rows = ""
+    for kind, msg in st.session_state.log_lines[-60:]:
+        css = {"system": "log-sys", "ok": "log-ok",
+               "warn": "log-warn", "err": "log-err"}.get(kind, "log-ok")
+        rows += f'<div class="{css}">&gt; {msg}</div>\n'
+    rows += '<div><span class="cursor"></span></div>'
+    return f'<div class="terminal-log">{rows}</div>'
+
+
+# ── BOOT ───────────────────────────────────────────────────────────────────────
+model    = load_model()
+auth_mode = init_gee()
+
+
+# ── SYSTEM STATUS BAR ──────────────────────────────────────────────────────────
+now_str = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+st.markdown(f"""
+<div class="status-bar">
+  <span class="status-item">MISSION: <span>SAT-SCAN TERMINAL v3.1</span></span>
+  <span class="status-item">SENSOR: <span>COPERNICUS/SENTINEL-2</span></span>
+  <span class="status-item">MODEL: <span>SIAMESE RESNET-18</span></span>
+  <span class="status-item">CLASSIFIER: <span>DYNAMIC WORLD v1</span></span>
+  <span class="status-item">AUTH: <span>{auth_mode.upper()}</span></span>
+  <span class="status-item">TIMESTAMP: <span>{now_str}</span></span>
+  <span class="status-item">STATUS: <span>ACTIVE</span></span>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ── LAYOUT ─────────────────────────────────────────────────────────────────────
+col1, col2, col3 = st.columns([1.1, 1.5, 0.65], gap="medium")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# COL 1 — AOI SELECTOR + DATES
+# ──────────────────────────────────────────────────────────────────────────────
+with col1:
+    st.markdown('<span class="term-header">// 01 — AREA OF INTEREST</span>',
+                unsafe_allow_html=True)
+    st.markdown(
+        '<span style="font-size:0.65rem;color:#FFFFFF;letter-spacing:0.08em;">'
+        'DRAW RECTANGLE › MAX 10 km × 10 km</span>',
+        unsafe_allow_html=True,
+    )
+
+    m = folium.Map(location=[37.7749, -122.4194], zoom_start=11, tiles=None)
+    folium.TileLayer(
+        tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        attr="Google", name="Google Satellite", overlay=False,
+    ).add_to(m)
+    Geocoder(position="topleft").add_to(m)
+    LocateControl(position="topleft", drawCircle=False, keepCurrentZoomLevel=False).add_to(m)
+    Draw(
+        export=False,
+        draw_options={
+            "rectangle": True, "polygon": False, "polyline": False,
+            "circle": False, "marker": False, "circlemarker": False,
+        },
+    ).add_to(m)
+
+    output = st_folium(m, width=None, height=400)
+
+    st.markdown('<span class="term-header">// 02 — TEMPORAL WINDOW</span>',
+                unsafe_allow_html=True)
+    dc1, dc2 = st.columns(2)
+    with dc1:
+        t1_date = st.date_input("T1 › BEFORE", datetime.date(2021, 1, 1))
+    with dc2:
+        t2_date = st.date_input("T2 › AFTER",  datetime.date(2023, 1, 1))
+
+
+# Decode bbox
+bbox      = None
+valid_box = False
+
+if output and output.get("last_active_drawing"):
+    geom   = output["last_active_drawing"]["geometry"]
+    coords = geom["coordinates"][0]
+    lons   = [c[0] for c in coords]
+    lats   = [c[1] for c in coords]
+    bbox   = [min(lons), min(lats), max(lons), max(lats)]
+
+    w_km = haversine(min(lons), min(lats), max(lons), min(lats))
+    h_km = haversine(min(lons), min(lats), min(lons), max(lats))
+
+    with col1:
+        if w_km > 10.0 or h_km > 10.0:
+            st.warning(f"AOI EXCEEDS LIMIT: {w_km:.2f} × {h_km:.2f} km — REDRAW")
+        else:
+            st.info(f"AOI LOCKED: {w_km:.2f} km × {h_km:.2f} km")
+            valid_box = True
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# COL 2 — ANALYSIS & RESULTS
+# ──────────────────────────────────────────────────────────────────────────────
+with col2:
+    st.markdown('<span class="term-header">// 03 — EXECUTE SCAN</span>',
+                unsafe_allow_html=True)
+
+    if st.button("[ INITIATE CHANGE DETECTION ]", type="primary"):
+        if not valid_box:
+            st.error("NO VALID AOI — DRAW RECTANGLE FIRST")
+            log("ERROR: INVALID AOI — SCAN ABORTED", "err")
+        else:
+            st.session_state.log_lines = []
+            log("SAT-LINK INITIALIZING...", "system")
+            log(f"AOI: [{bbox[0]:.5f}, {bbox[1]:.5f}, {bbox[2]:.5f}, {bbox[3]:.5f}]", "ok")
+            log(f"T1={t1_date}  T2={t2_date}", "ok")
+            log("QUERYING COPERNICUS/S2_SR_HARMONIZED...", "system")
+            log("FETCHING GEOTIFF AT scale=10m/px...", "system")
+
+            with st.spinner("SCANNING TARGET AREA — PLEASE WAIT"):
+                try:
+                    # Direct function call — no HTTP round-trip
+                    def _model_fn(img1, img2, threshold):
+                        return detect_changes_zero_shot(img1, img2, threshold, model=model)
+
+                    data = run_analysis(
+                        bbox=bbox,
+                        t1_date=str(t1_date),
+                        t2_date=str(t2_date),
+                        model_fn=_model_fn,
+                    )
+
+                    st.session_state.analysis_data = data
+                    st.session_state.run_t1_date   = t1_date
+                    st.session_state.run_t2_date   = t2_date
+
+                    feats     = data.get("geojson", {}).get("features", [])
+                    n_human   = sum(1 for f in feats if f["properties"]["type"] == "Human-made")
+                    n_natural = sum(1 for f in feats if f["properties"]["type"] == "Natural")
+
+                    log("GEOTIFF DOWNLOAD COMPLETE", "ok")
+                    log("RUNNING SIAMESE RESNET INFERENCE...", "system")
+                    log("MORPHOLOGICAL OPENING: footprint_rectangle(3,3)", "system")
+                    log("EXTRACTING CONTOUR POLYGONS...", "ok")
+                    log("QUERYING DYNAMICWORLD/V1 built probability...", "system")
+                    log("MAJORITY RULE (threshold=0.5) APPLIED", "ok")
+                    log("BARE-SOIL MODAL OVERRIDE (Class 4/5) APPLIED", "ok")
+                    log(f"HUMAN-MADE CHANGES: {n_human}", "warn" if n_human > 0 else "ok")
+                    log(f"NATURAL CHANGES:    {n_natural}", "ok")
+                    log(f"TOTAL AREA CHANGED: {data['stats']['changed_pct']}%", "ok")
+                    log("CLASSIFICATION COMPLETE. RENDERING MAP...", "system")
+
+                except Exception as exc:
+                    log(f"SCAN FAILED: {str(exc)[:120]}", "err")
+                    st.error(f"Analysis error: {exc}")
+
+    # ── RESULTS ───────────────────────────────────────────────────────────────
+    if "analysis_data" in st.session_state:
+        data   = st.session_state.analysis_data
+        run_t1 = st.session_state.run_t1_date
+        run_t2 = st.session_state.run_t2_date
+
+        st.markdown("""
+<div class="stats-card">
+  <h4>[ CHANGE STATISTICS ]</h4>
+  <p>TOTAL CHANGED &nbsp;&nbsp;: <b>{changed}%</b></p>
+  <p style="color:#FF4444 !important;">HUMAN-MADE (BUILT): <b>{human}%</b></p>
+  <p style="color:#00FF41 !important;">NATURAL CHANGE &nbsp;: <b>{natural}%</b></p>
+</div>""".format(
+            changed=data["stats"]["changed_pct"],
+            human=data["stats"]["human_pct"],
+            natural=data["stats"]["natural_pct"],
+        ), unsafe_allow_html=True)
+
+        st.markdown('<span class="term-header">// SENTINEL-2 IMAGERY</span>',
+                    unsafe_allow_html=True)
+        ic1, ic2 = st.columns(2)
+        with ic1:
+            st.image(data["t1_image"], caption=f"T1 BEFORE › {run_t1}", width="stretch")
+        with ic2:
+            st.image(data["t2_image"], caption=f"T2 AFTER  › {run_t2}",  width="stretch")
+
+        st.markdown('<span class="term-header">// SYNCHRONIZED CHANGE MAP</span>',
+                    unsafe_allow_html=True)
+
+        std_bbox  = data["standard_bbox"]
+        s_min_lat = std_bbox[0][0];  s_min_lon = std_bbox[0][1]
+        s_max_lat = std_bbox[1][0];  s_max_lon = std_bbox[1][1]
+        center    = [(s_min_lat + s_max_lat) / 2, (s_min_lon + s_max_lon) / 2]
+
+        m_res = folium.plugins.DualMap(
+            location=center, zoom_start=15,
+            tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+            attr="Google", name="Google Satellite",
+        )
+
+        folium.raster_layers.ImageOverlay(
+            image=data["t1_image"], bounds=std_bbox,
+            opacity=1.0, interactive=False, cross_origin=False, zindex=2,
+        ).add_to(m_res.m1)
+
+        folium.raster_layers.ImageOverlay(
+            image=data["t2_image"], bounds=std_bbox,
+            opacity=1.0, interactive=False, cross_origin=False, zindex=2,
+        ).add_to(m_res.m2)
+
+        def style_fn(feat):
+            human = feat["properties"]["type"] == "Human-made"
+            return {
+                "color":       "#FF0000" if human else "#00FF41",
+                "fillColor":   "#FF0000" if human else "#00FF41",
+                "weight":      1,
+                "fillOpacity": 0.06,
+                "opacity":     0.9,
+            }
+
+        feats = data.get("geojson", {}).get("features", [])
+        if feats:
+            folium.GeoJson(
+                data["geojson"], name="Detections",
+                style_function=style_fn,
+                popup=folium.GeoJsonPopup(fields=["type", "confidence", "description"]),
+            ).add_to(m_res.m2)
+
+        st.iframe(m_res.get_root().render(), height=560)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# COL 3 — TERMINAL LOG
+# ──────────────────────────────────────────────────────────────────────────────
+with col3:
+    st.markdown('<span class="term-header">// MISSION LOG</span>', unsafe_allow_html=True)
+    st.empty().markdown(build_log_html(), unsafe_allow_html=True)
