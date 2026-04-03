@@ -1,0 +1,269 @@
+/* ============================================================
+   SAT-CHANGE-DETECTOR v3.1 — PROFESSIONAL TERMINAL
+   Font: Roboto Mono | Palette: #000000 / #00FF41 / #FFFFFF
+   No glow. No shadows. Pure precision.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap');
+
+/* ── GLOBAL ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+    font-family: 'Roboto Mono', 'Consolas', 'Courier New', monospace !important;
+    box-sizing: border-box;
+}
+
+/* ── APP BASE ────────────────────────────────────────────────── */
+.stApp {
+    background-color: #000000 !important;
+    color: #00FF41 !important;
+}
+
+.block-container {
+    background-color: #000000 !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 1400px !important;
+}
+
+/* ── HIDE STREAMLIT CHROME ──────────────────────────────────── */
+#MainMenu, footer, header { visibility: hidden !important; }
+[data-testid="stToolbar"] { display: none !important; }
+
+/* ── ALL TEXT ────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6, p, span, label, div, li, td, th {
+    color: #00FF41 !important;
+    font-family: 'Roboto Mono', monospace !important;
+}
+.stMarkdown p, .stMarkdown li, .stMarkdown span {
+    color: #00FF41 !important;
+}
+
+/* ── SYSTEM STATUS BAR ──────────────────────────────────────── */
+.status-bar {
+    border: 1px solid #00FF41;
+    background: #000000;
+    padding: 0.45rem 1rem;
+    margin-bottom: 0.8rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: #00FF41 !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.status-bar .status-item {
+    color: #00FF41 !important;
+}
+
+.status-bar .status-item span {
+    color: #FFFFFF !important;
+}
+
+/* ── SECTION HEADERS ────────────────────────────────────────── */
+.term-header {
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+    color: #FFFFFF !important;
+    border-left: 2px solid #00FF41;
+    padding-left: 0.5rem;
+    margin: 0.8rem 0 0.5rem 0;
+    text-transform: uppercase;
+    display: block;
+}
+
+/* ── ASCII BOX CONTAINERS ───────────────────────────────────── */
+.ascii-box {
+    border: 1px solid #00FF41;
+    background: #000000;
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+}
+
+.ascii-box-title {
+    font-size: 0.62rem;
+    color: #FFFFFF !important;
+    letter-spacing: 0.2em;
+    background: #000000;
+    display: inline-block;
+    position: relative;
+    top: 0;
+    left: 0;
+    padding: 0 0.4rem;
+    margin-bottom: 0.6rem;
+    border-bottom: 1px solid #00FF41;
+    width: 100%;
+}
+
+/* ── BUTTON ──────────────────────────────────────────────────── */
+div.stButton > button:first-child {
+    background: #000000 !important;
+    border: 1px solid #00FF41 !important;
+    border-radius: 0 !important;
+    padding: 0.5rem 1.5rem !important;
+    color: #00FF41 !important;
+    font-family: 'Roboto Mono', monospace !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    transition: background 0.15s, color 0.15s !important;
+    width: 100% !important;
+    box-shadow: none !important;
+}
+
+div.stButton > button:first-child:hover {
+    background: #00FF41 !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+div.stButton > button:first-child:active {
+    background: #00cc33 !important;
+}
+
+/* ── DATE INPUTS ─────────────────────────────────────────────── */
+.stDateInput > div > div > input,
+.stTextInput > div > div > input {
+    background: #000000 !important;
+    border: 1px solid #00FF4166 !important;
+    border-radius: 0 !important;
+    color: #00FF41 !important;
+    font-family: 'Roboto Mono', monospace !important;
+    font-size: 0.78rem !important;
+    padding: 0.3rem 0.5rem !important;
+}
+
+.stDateInput label, .stSelectbox label, .stTextInput label {
+    color: #FFFFFF !important;
+    font-size: 0.65rem !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+}
+
+/* ── ALERTS ──────────────────────────────────────────────────── */
+div[data-testid="stInfo"] {
+    background: #000000 !important;
+    border: 1px solid #00FF4166 !important;
+    border-radius: 0 !important;
+    color: #00FF41 !important;
+}
+div[data-testid="stWarning"] {
+    background: #000000 !important;
+    border: 1px solid #ffcc4466 !important;
+    border-radius: 0 !important;
+    color: #ffcc44 !important;
+}
+div[data-testid="stError"] {
+    background: #000000 !important;
+    border: 1px solid #ff444466 !important;
+    border-radius: 0 !important;
+    color: #ff4444 !important;
+}
+div[data-testid="stSuccess"] {
+    background: #000000 !important;
+    border: 1px solid #00FF4166 !important;
+    border-radius: 0 !important;
+    color: #00FF41 !important;
+}
+
+/* ── STATS PANEL ─────────────────────────────────────────────── */
+.stats-card {
+    border: 1px solid #00FF41;
+    background: #000000;
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.8rem;
+    position: relative;
+}
+
+.stats-card h4 {
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    color: #FFFFFF !important;
+    text-transform: uppercase;
+    border-bottom: 1px solid #00FF4144;
+    padding-bottom: 0.4rem;
+    margin: 0 0 0.6rem 0;
+}
+
+.stats-card p {
+    font-size: 0.82rem;
+    margin: 0.25rem 0;
+    color: #00FF41 !important;
+    letter-spacing: 0.05em;
+}
+
+/* ── TERMINAL LOG ────────────────────────────────────────────── */
+.terminal-log {
+    background: #000000;
+    border: 1px solid #00FF41;
+    padding: 0.7rem 0.8rem;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.65rem;
+    color: #00FF41;
+    line-height: 1.65;
+    min-height: 380px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.log-ts   { color: #555555; }
+.log-sys  { color: #FFFFFF; }
+.log-ok   { color: #00FF41; }
+.log-warn { color: #ffcc44; }
+.log-err  { color: #ff4444; }
+
+/* blinking block cursor */
+.cursor {
+    display: inline-block;
+    width: 8px;
+    height: 0.85em;
+    background: #00FF41;
+    vertical-align: text-bottom;
+    animation: blink 1.1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── MAP IFRAME ──────────────────────────────────────────────── */
+iframe {
+    border: 1px solid #00FF4155 !important;
+    border-radius: 0 !important;
+}
+
+/* ── IMAGES ──────────────────────────────────────────────────── */
+.stImage {
+    border: 1px solid #00FF4133;
+}
+.stImage figcaption {
+    color: #FFFFFF !important;
+    font-size: 0.62rem !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase;
+    text-align: center;
+    background: #000000;
+    padding: 0.2rem 0;
+}
+
+/* ── SPINNER ─────────────────────────────────────────────────── */
+.stSpinner > div { border-top-color: #00FF41 !important; }
+
+/* ── SCROLLBAR ───────────────────────────────────────────────── */
+::-webkit-scrollbar            { width: 4px; height: 4px; }
+::-webkit-scrollbar-track      { background: #000000; }
+::-webkit-scrollbar-thumb      { background: #00FF4166; border-radius: 0; }
+::-webkit-scrollbar-thumb:hover{ background: #00FF41; }
+
+/* ── COLUMN DIVIDERS ─────────────────────────────────────────── */
+[data-testid="column"] {
+    border-right: 1px solid #00FF4122;
+    padding-right: 1rem !important;
+}
+[data-testid="column"]:last-child {
+    border-right: none;
+}
+
+/* ── HORIZONTAL RULE ─────────────────────────────────────────── */
+hr { border-color: #00FF4133 !important; }

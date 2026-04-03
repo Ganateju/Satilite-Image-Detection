@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+streamlit
+streamlit-folium
+earthengine-api
+torch>=2.9.0
+torchvision
+numpy
+python-dotenv
+pydantic
+requests
+pydeck
+scikit-image
+rasterio
+Pillow
+folium

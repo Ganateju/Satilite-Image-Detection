@@ -1,0 +1,51 @@
+# =============================================================
+# SAT-CHANGE-DETECTOR — .gitignore
+# =============================================================
+
+# --- Secrets & Credentials ---
+.env
+*.json              # GEE service account key files
+credentials/
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# --- Virtual Environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Rasterio / GDAL Temp ---
+*.tif
+*.tiff
+*.geotiff
+
+# --- Streamlit ---
+.streamlit/secrets.toml
+
+# --- PyCharm / VS Code / JetBrains ---
+.idea/
+.vscode/
+*.code-workspace
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Test scripts (local dev only) ---
+test_*.py
+check_auth.py
+test_folium.py
